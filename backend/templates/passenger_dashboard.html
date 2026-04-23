@@ -1,0 +1,226 @@
+{% load static %}
+{% include 'header.html' %}
+
+                <div class="container-fluid">
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">Passenger Booking - {{ service_date }}</h1>
+                    </div>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-info" role="alert">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Upcoming Trains Section -->
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-success">Upcoming Trains & Seat Availability</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-sm" width="100%" cellspacing="0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Number</th>
+                                                    <th>Name</th>
+                                                    <th>Scheduled</th>
+                                                    <th>Effective</th>
+                                                    <th>Delay</th>
+                                                    <th>Track</th>
+                                                    <th>Direction</th>
+                                                    <th>1A</th>
+                                                    <th>2A</th>
+                                                    <th>3A</th>
+                                                    <th>SL</th>
+                                                    <th>CC</th>
+                                                    <th>2S</th>
+                                                    <th>GN</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for train in upcoming_trains %}
+                                                <tr>
+                                                    <td>{{ train.number }}</td>
+                                                    <td>{{ train.name }}</td>
+                                                    <td>{{ train.scheduled }}</td>
+                                                    <td>
+                                                        {% if train.is_passed %}
+                                                            <span class="badge badge-dark">Passed</span>
+                                                        {% else %}
+                                                            <span class="{% if train.delay > 0 %}text-danger{% endif %}">{{ train.effective }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ train.delay }} min</td>
+                                                    <td>{{ train.track }}</td>
+                                                    <td>{{ train.direction }}</td>
+                                                    <td>{% if train.is_memu %}<span class="text-muted">-</span>{% else %}<span class="badge badge-{% if train.seats.1A > 10 %}success{% elif train.seats.1A > 0 %}warning{% else %}danger{% endif %}">{{ train.seats.1A }}</span>{% endif %}</td>
+                                                    <td>{% if train.is_memu %}<span class="text-muted">-</span>{% else %}<span class="badge badge-{% if train.seats.2A > 30 %}success{% elif train.seats.2A > 0 %}warning{% else %}danger{% endif %}">{{ train.seats.2A }}</span>{% endif %}</td>
+                                                    <td>{% if train.is_memu %}<span class="text-muted">-</span>{% else %}<span class="badge badge-{% if train.seats.3A > 30 %}success{% elif train.seats.3A > 0 %}warning{% else %}danger{% endif %}">{{ train.seats.3A }}</span>{% endif %}</td>
+                                                    <td>{% if train.is_memu %}<span class="text-muted">-</span>{% else %}<span class="badge badge-{% if train.seats.SL > 40 %}success{% elif train.seats.SL > 0 %}warning{% else %}danger{% endif %}">{{ train.seats.SL }}</span>{% endif %}</td>
+                                                    <td>{% if train.is_memu %}<span class="text-muted">-</span>{% else %}<span class="badge badge-{% if train.seats.CC > 40 %}success{% elif train.seats.CC > 0 %}warning{% else %}danger{% endif %}">{{ train.seats.CC }}</span>{% endif %}</td>
+                                                    <td>{% if train.is_memu %}<span class="text-muted">-</span>{% else %}<span class="badge badge-{% if train.seats.2S > 50 %}success{% elif train.seats.2S > 0 %}warning{% else %}danger{% endif %}">{{ train.seats.2S }}</span>{% endif %}</td>
+                                                    <td><span class="badge badge-info">GEN</span>{% if train.is_memu %} <small class="text-muted">(GN only)</small>{% endif %}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="14" class="text-center">No trains scheduled today.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Book Ticket</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <div class="form-group">
+                                            <label>Ticket Type</label>
+                                            <select class="form-control" name="ticket_type">
+                                                <option value="TRAIN">Train</option>
+                                                <option value="PLATFORM">Platform</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Train Schedule</label>
+                                            <select class="form-control" name="schedule_id">
+                                                <option value="">-- Optional for Platform --</option>
+                                                {% for s in schedules %}
+                                                    <option value="{{ s.id }}">{{ s.train.number }} - {{ s.train.name }} ({{ s.scheduled_time }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Class</label>
+                                            <select class="form-control" name="coach_class" id="coachClass">
+                                                {% for value, label in coach_classes %}
+                                                    <option value="{{ value }}">{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <small class="form-text text-muted">MEMU/EMU trains allow only GN. Other trains include GN + reserved coaches. Prices are fixed by class.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Number of Passengers/Tickets</label>
+                                            <input type="number" class="form-control" name="passenger_count" id="passengerCount" min="1" max="{{ max_tickets_per_booking }}" value="1" required>
+                                            <small class="form-text text-muted">Maximum {{ max_tickets_per_booking }} per booking in passenger portal.</small>
+                                        </div>
+                                        <div class="border rounded p-3 mb-3" id="passengerDetailsSection" style="display:none;">
+                                            <h6 class="font-weight-bold mb-2">Passenger Details (required for SL/3A/2A/1A)</h6>
+                                            <div id="passengerDetailsRows"></div>
+                                        </div>
+                                        <div class="alert alert-light border" role="alert">
+                                            Platform: ₹{{ platform_price }} | GN: ₹{{ ticket_prices.GN }} | 2S: ₹{{ ticket_prices.2S }} | SL: ₹{{ ticket_prices.SL }} | 3A: ₹{{ ticket_prices.3A }} | 2A: ₹{{ ticket_prices.2A }} | 1A: ₹{{ ticket_prices.1A }}
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Book</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">My Tickets</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered" width="100%" cellspacing="0">
+                                            <thead>
+                                                <tr>
+                                                    <th>PNR</th>
+                                                    <th>Type</th>
+                                                    <th>Class</th>
+                                                    <th>Qty</th>
+                                                    <th>Taken At</th>
+                                                    <th>Amount</th>
+                                                    <th>Status</th>
+                                                    <th>Print</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for t in tickets %}
+                                                <tr>
+                                                    <td>{{ t.pnr }}</td>
+                                                    <td>{{ t.ticket_type }}</td>
+                                                    <td>{{ t.coach_class }}</td>
+                                                    <td>{{ t.passenger_count }}</td>
+                                                    <td>{{ t.booked_at|date:"d-m-Y H:i" }}</td>
+                                                    <td>₹{{ t.amount_inr }}</td>
+                                                    <td>{{ t.status }}</td>
+                                                    <td><a class="btn btn-sm btn-outline-secondary" href="{% url 'print_ticket' t.id %}" target="_blank">PDF</a></td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="8" class="text-center">No tickets in last 3 hours.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+{% include 'footer.html' %}
+
+<script>
+(function() {
+    var reservedClasses = {{ reserved_classes_requiring_details|safe }};
+    var ticketTypeEl = document.querySelector('select[name="ticket_type"]');
+    var coachClassEl = document.getElementById('coachClass');
+    var countEl = document.getElementById('passengerCount');
+    var detailsSection = document.getElementById('passengerDetailsSection');
+    var rowsContainer = document.getElementById('passengerDetailsRows');
+
+    function needsPassengerDetails() {
+        return ticketTypeEl.value === 'TRAIN' && reservedClasses.indexOf(coachClassEl.value) !== -1;
+    }
+
+    function buildRows(count) {
+        rowsContainer.innerHTML = '';
+        for (var i = 0; i < count; i++) {
+            var row = document.createElement('div');
+            row.className = 'form-row mb-2';
+            row.innerHTML = '' +
+                '<div class="col-md-5"><input type="text" class="form-control" name="passenger_name[]" placeholder="Passenger Name ' + (i + 1) + '" required></div>' +
+                '<div class="col-md-3"><input type="number" class="form-control" name="passenger_age[]" min="1" max="120" placeholder="Age" required></div>' +
+                '<div class="col-md-4"><select class="form-control" name="passenger_gender[]" required><option value="">Gender</option><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select></div>';
+            rowsContainer.appendChild(row);
+        }
+    }
+
+    function togglePassengerDetails() {
+        var count = parseInt(countEl.value || '1', 10);
+        if (isNaN(count) || count < 1) {
+            count = 1;
+            countEl.value = 1;
+        }
+        if (needsPassengerDetails()) {
+            detailsSection.style.display = 'block';
+            buildRows(count);
+        } else {
+            detailsSection.style.display = 'none';
+            rowsContainer.innerHTML = '';
+        }
+    }
+
+    ticketTypeEl.addEventListener('change', togglePassengerDetails);
+    coachClassEl.addEventListener('change', togglePassengerDetails);
+    countEl.addEventListener('input', togglePassengerDetails);
+    togglePassengerDetails();
+
+    setInterval(function() {
+        window.location.reload();
+    }, 60000);
+})();
+</script>

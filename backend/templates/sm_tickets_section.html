@@ -1,0 +1,67 @@
+{% load static %}
+{% include 'header.html' %}
+
+                <div class="container-fluid">
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">Ticket Counter Section</h1>
+                        <button onclick="window.print()" class="btn btn-sm btn-success shadow-sm">
+                            <i class="fas fa-download fa-sm text-white-50"></i> Download PDF
+                        </button>
+                    </div>
+
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">All Tickets</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered" width="100%" cellspacing="0">
+                                    <thead>
+                                        <tr>
+                                            <th>PNR</th>
+                                            <th>Passenger</th>
+                                            <th>Type</th>
+                                            <th>Train</th>
+                                            <th>Class</th>
+                                            <th>Date & Time</th>
+                                            <th>Amount (₹)</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ticket in tickets %}
+                                        <tr>
+                                            <td>{{ ticket.pnr }}</td>
+                                            <td>{{ ticket.user.first_name }} {{ ticket.user.last_name }}</td>
+                                            <td>{{ ticket.get_ticket_type_display }}</td>
+                                            <td>
+                                                {% if ticket.schedule %}
+                                                    {{ ticket.schedule.train.number }} - {{ ticket.schedule.train.name }}<br>
+                                                    <small>{{ ticket.schedule.scheduled_time }}</small>
+                                                {% else %}
+                                                    Platform Only
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ ticket.get_coach_class_display }}</td>
+                                            <td>{{ ticket.booked_at|date:"d-m-Y H:i" }}</td>
+                                            <td>₹{{ ticket.amount_inr }}</td>
+                                            <td><span class="badge badge-{% if ticket.status == 'ACTIVE' %}success{% elif ticket.status == 'DEPARTED' %}secondary{% else %}danger{% endif %}">{{ ticket.get_status_display }}</span></td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="8" class="text-center">No tickets found.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+<style>
+@media print {
+    .sidebar, .navbar, .btn, .no-print { display: none !important; }
+    .container-fluid { margin: 0; padding: 0; }
+}
+</style>
+
+{% include 'footer.html' %}

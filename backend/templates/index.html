@@ -1,0 +1,54 @@
+{% load static %}
+{% include 'header.html' %}
+
+
+                <!-- Begin Page Content -->
+                <div class="container-fluid">
+
+                    <!-- Page Heading -->
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">DASHBOARD - THRISSUR JUNCTION</h1>
+                        <div class="h5 mb-0 text-gray-600" id="systemTime">
+                            <i class="fas fa-clock"></i> <span id="timeDisplay">--:--:--</span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Welcome to Thrissur Junction</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p>Thrissur Railway Station (Station Code: <strong>TCR</strong>) is a major railway junction in Kerala, India.</p>
+                                    <p>This station management system provides comprehensive control over:</p>
+                                    <ul>
+                                        <li><strong>Ticketing Operations</strong> - Manage passenger tickets across all classes</li>
+                                        <li><strong>Goods Management</strong> - Track shipments and cargo</li>
+                                        <li><strong>Store Operations</strong> - Monitor retail sales at station stores</li>
+                                        <li><strong>Train Scheduling</strong> - Real-time train tracking and signal control</li>
+                                    </ul>
+                                    <p class="text-muted">Please select your role from the sidebar to access the appropriate dashboard.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- /.container-fluid -->
+
+<script>
+function updateTime() {
+    const now = new Date();
+    const timeString = now.toTimeString().split(' ')[0];
+    document.getElementById('timeDisplay').innerText = timeString;
+}
+setInterval(updateTime, 1000);
+updateTime();
+</script>
+
+            </div>
+            <!-- End of Main Content -->
+
+            
+{% include 'footer.html' %}

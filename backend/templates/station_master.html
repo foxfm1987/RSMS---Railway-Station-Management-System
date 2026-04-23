@@ -1,0 +1,178 @@
+{% load static %}
+{% include 'header.html' %}
+
+                <div class="container-fluid">
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">DASHBOARD - THRISSUR JUNCTION</h1>
+                        <div class="d-flex align-items-center">
+                            <div class="h5 mb-0 text-gray-600 mr-3" id="systemTime">
+                                <i class="fas fa-clock"></i> <span id="timeDisplay">--:--:--</span>
+                            </div>
+                            <a href="{% url 'full_report' %}?days=30" target="_blank" class="btn btn-sm btn-success shadow-sm">
+                                <i class="fas fa-file-pdf fa-sm text-white-50"></i> Full Report (30 Days)
+                            </a>
+                        </div>
+                    </div>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-info" role="alert">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="row mb-4">
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-primary shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Tickets Revenue (Today)</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="ticketRevenue">₹{{ ticket_revenue }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-ticket-alt fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-success shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Goods Revenue (Today)</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="goodsRevenue">₹{{ goods_revenue }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-truck-loading fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-info shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Store Revenue (Today)</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="storeRevenue">₹{{ store_revenue }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-store fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6 mb-4">
+                            <div class="card border-left-warning shadow h-100 py-2">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Total Revenue (Today)</div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalRevenue">₹{{ total_revenue }}</div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <i class="fas fa-rupee-sign fa-2x text-gray-300"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="card shadow mb-4">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">Arriving Trains ({{ service_date }})</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered" width="100%" cellspacing="0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Train No.</th>
+                                                    <th>Train Name</th>
+                                                    <th>Origin</th>
+                                                    <th>Destination</th>
+                                                    <th>Scheduled</th>
+                                                    <th>Effective</th>
+                                                    <th>Platform</th>
+                                                    <th>Direction</th>
+                                                    <th>Delay (min)</th>
+                                                    <th>Update</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for row in rows %}
+                                                <tr>
+                                                    <td>{{ row.number }}</td>
+                                                    <td>{{ row.name }}</td>
+                                                    <td>{{ row.origin }}</td>
+                                                    <td>{{ row.destination }}</td>
+                                                    <td>{{ row.scheduled }}</td>
+                                                    <td>{{ row.effective }}</td>
+                                                    <td>{{ row.platform }}</td>
+                                                    <td>{{ row.direction }}</td>
+                                                    <td>{{ row.delay }}</td>
+                                                    <td>
+                                                        <form method="post" class="form-inline">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="schedule_id" value="{{ row.id }}" />
+                                                            <input type="number" min="0" class="form-control form-control-sm mr-2" name="delay_minutes" placeholder="Delay" style="width:80px;" />
+                                                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="10" class="text-center">No schedules for today.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+<script>
+function updateTime() {
+    const now = new Date();
+    const timeString = now.toTimeString().split(' ')[0];
+    document.getElementById('timeDisplay').innerText = timeString;
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+function refreshRevenues() {
+    fetch("{% url 'station_master_revenue' %}")
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (!data) return;
+            if (data.ticket_revenue !== undefined) {
+                document.getElementById('ticketRevenue').innerText = '₹' + data.ticket_revenue.toFixed(2);
+            }
+            if (data.goods_revenue !== undefined) {
+                document.getElementById('goodsRevenue').innerText = '₹' + data.goods_revenue.toFixed(2);
+            }
+            if (data.store_revenue !== undefined) {
+                document.getElementById('storeRevenue').innerText = '₹' + data.store_revenue.toFixed(2);
+            }
+            if (data.total_revenue !== undefined) {
+                document.getElementById('totalRevenue').innerText = '₹' + data.total_revenue.toFixed(2);
+            }
+        })
+        .catch(function() {});
+}
+setInterval(refreshRevenues, 1000);
+refreshRevenues();
+</script>
+
+{% include 'footer.html' %}

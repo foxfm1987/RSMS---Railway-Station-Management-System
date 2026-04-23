@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Passenger Login - Thrissur Junction</title>
+
+    <!-- Custom fonts for this template-->
+    <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+
+    <!-- Custom styles for this template-->
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .login-header i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .login-body {
+            padding: 40px;
+        }
+        .form-control-user {
+            border-radius: 25px;
+            padding: 15px 20px;
+            border: 2px solid #e3e6f0;
+            transition: all 0.3s;
+        }
+        .form-control-user:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            padding: 15px;
+            font-weight: bold;
+            color: white;
+            transition: transform 0.3s;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        .link-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 600;
+        }
+        .link-gradient:hover {
+            text-decoration: none;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-xl-6 col-lg-8 col-md-9">
+                <div class="card login-card border-0 shadow-lg my-5">
+                    <div class="login-header">
+                        <i class="fas fa-train"></i>
+                        <h1 class="h3 mb-2">Thrissur Junction</h1>
+                        <h2 class="h5">Passenger Portal</h2>
+                    </div>
+                    <div class="login-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-danger" role="alert">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <form method="post" action="">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <input type="email" class="form-control form-control-user"
+                                    name="email" placeholder="Email Address" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="password" class="form-control form-control-user"
+                                    name="password" placeholder="Password" required>
+                            </div>
+                            <button type="submit" class="btn btn-gradient btn-user btn-block">
+                                <i class="fas fa-sign-in-alt"></i> Login to Book Tickets
+                            </button>
+                        </form>
+                        <hr>
+                        <div class="text-center">
+                            <a class="link-gradient" href="{% url 'register' %}">Create New Account</a>
+                        </div>
+                        <div class="text-center mt-2">
+                            <a class="small text-muted" href="{% url 'staff_login' %}">Staff? Click here</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="{% static 'vendor/jquery/jquery.min.js' %}"></script>
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'vendor/jquery-easing/jquery.easing.min.js' %}"></script>
+    <script src="{% static 'js/sb-admin-2.min.js' %}"></script>
+
+</body>
+</html>

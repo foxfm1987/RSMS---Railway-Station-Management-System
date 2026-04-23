@@ -1,0 +1,668 @@
+{% load static %}
+{% include 'header.html' %}
+
+<style>
+        :root { --bg: #222; --panel: #2b2b2b; --text: #eee; --accent: #f1c40f; }
+        #page-top { background-color: var(--bg); }
+        #content-wrapper { background-color: var(--bg); }
+        #content { background-color: var(--bg); }
+        .train-page-content { color: var(--text); font-family: 'Segoe UI', monospace; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 90vh; overflow: hidden; flex-shrink: 0; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; margin-bottom: 10px; padding-bottom: 10px; }
+        .clock { font-size: 1.5em; color: var(--accent); font-weight: bold; }
+
+        .workspace { display: flex; gap: 20px; flex: 1; height: 100%; }
+        
+        .map-container { flex: 3; position: relative; border: 1px solid #444; background: #1a1a1a; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+        canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+        
+        .data-panel { flex: 1; background: var(--panel); border: 1px solid #444; padding: 15px; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+        .scroll-area { overflow-y: auto; flex: 1; margin-top: 10px;}
+        
+        .mode-switch { background: #333; padding: 5px; border-radius: 5px; margin-bottom: 10px; display: flex; gap: 5px; }
+        .mode-btn { padding: 6px; border: 1px solid #555; background: #222; color: #888; cursor: pointer; flex: 1; font-size: 0.8em;}
+        .mode-btn.active { background: #f39c12; color: #111; border-color: #f39c12; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th { text-align: left; color: #888; border-bottom: 1px solid #555; padding: 5px;}
+        td { padding: 8px 5px; border-bottom: 1px solid #333; }
+        .status-PENDING { color: #f1c40f; }
+        .status-ARRIVED { color: #3498db; }
+        .status-DEPARTED { color: #2ecc71; }
+        .status-STOPPED { color: #e67e22; }
+        .status-DEPARTING { color: #9b59b6; }
+        .status-GONE { color: #95a5a6; }
+        
+        .legend { position: absolute; bottom: 10px; left: 10px; font-size: 0.8em; color: #aaa; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px; pointer-events: none; border: 1px solid #444;}
+        
+        .test-mode-banner { background: #f39c12; color: #111; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 10px; border-radius: 4px; }
+        .test-controls { background: #333; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .test-controls label { color: #aaa; font-size: 0.85em; margin-right: 10px; }
+        .test-controls input, .test-controls button { margin: 5px; }
+        .test-btn { padding: 5px 10px; background: #555; color: #eee; border: 1px solid #777; cursor: pointer; border-radius: 3px; font-size: 0.8em; }
+        .test-btn:hover { background: #666; }
+</style>
+
+<div class="container-fluid train-page-content">
+
+    <div class="header">
+        <h2>THRISSUR JUNCTION (TCR) <span style="font-size:0.6em; opacity:0.6;">SIGNAL CONTROL</span></h2>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <div class="clock" id="sysTime">00:00:00</div>
+            <a href="?test={% if test_mode %}0{% else %}1{% endif %}" style="font-size: 0.8em; color: var(--accent); text-decoration: none; border: 1px solid var(--accent); padding: 5px 10px; border-radius: 4px;">
+                {% if test_mode %}EXIT TEST{% else %}TEST MODE{% endif %}
+            </a>
+        </div>
+    </div>
+
+    {% if test_mode %}
+    <div class="test-mode-banner">
+        <i class="fas fa-flask"></i> TEST MODE ACTIVE - Changes do not affect actual schedule
+    </div>
+    <div class="test-controls">
+        <label>Time Speed:</label>
+        <button class="test-btn" onclick="setTimeSpeed(1)">1x</button>
+        <button class="test-btn" onclick="setTimeSpeed(2)">2x</button>
+        <button class="test-btn" onclick="setTimeSpeed(5)">5x</button>
+        <button class="test-btn" onclick="setTimeSpeed(10)">10x</button>
+        <span style="margin: 0 20px;">|</span>
+        <label>Spawn Train:</label>
+        <button class="test-btn" onclick="spawnTestTrain('EXPRESS')">Express (Stop)</button>
+        <button class="test-btn" onclick="spawnTestTrain('EXPRESS_FAST')">Express (No Stop)</button>
+        <button class="test-btn" onclick="spawnTestTrain('EXPRESS_DN')">Express DN</button>
+        <button class="test-btn" onclick="spawnTestTrain('GOODS')">Goods UP</button>
+        <button class="test-btn" onclick="spawnTestTrain('LOCAL')">Local</button>
+    </div>
+    {% endif %}
+
+    <div class="workspace">
+        <div class="map-container">
+            <canvas id="railMap" width="1400" height="600"></canvas>
+            <div class="legend">
+                <strong>ENG:</strong> Engine | <strong>SLR/EOG:</strong> End Bogies<br>
+                <strong>BOXN:</strong> Goods Wagon | <strong>BVZI:</strong> Brake Van
+            </div>
+        </div>
+
+        <div class="data-panel">
+            <div class="mode-switch">
+                <button id="btnAuto" class="mode-btn active" onclick="setMode(false)">AUTO</button>
+                <button id="btnManual" class="mode-btn" onclick="setMode(true)">MANUAL</button>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>SCHEDULE ({{ service_date }})</h3>
+            </div>
+            <div class="scroll-area">
+                <table id="scheduleTable">
+                    <thead><tr><th>Time</th><th>Train No.</th><th>Train</th><th>Line</th><th>Status</th></tr></thead>
+                    <tbody id="scheduleBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const CANVAS = document.getElementById('railMap');
+    const CTX = CANVAS.getContext('2d');
+    
+    let MANUAL_MODE = false;
+    let animFrameId;
+    let TEST_MODE = {% if test_mode %}true{% else %}false{% endif %};
+    let TIME_SPEED = 1;  // Time multiplier for test mode
+    let SIMULATED_TIME_OFFSET = 0;  // Offset in milliseconds for test mode
+
+    function setMode(m) {
+        MANUAL_MODE = m;
+        document.getElementById('btnAuto').className = m ? 'mode-btn' : 'mode-btn active';
+        document.getElementById('btnManual').className = m ? 'mode-btn active' : 'mode-btn';
+    }
+
+    function setTimeSpeed(speed) {
+        TIME_SPEED = speed;
+    }
+
+    function spawnTestTrain(type) {
+        let testSchedule = {
+            id: 'TEST-' + Math.random(),
+            time: new Date().toTimeString().split(' ')[0],
+            name: type + ' Test Train',
+            number: 'TEST',
+            status: 'PENDING'
+        };
+        
+        let trackToCheck = -1;
+        
+        if (type === 'EXPRESS') {
+            // UP direction (left-right) with stops - use PLATFORM2
+            testSchedule.type = 'NORMAL';
+            testSchedule.track = 1;  // PLATFORM2
+            testSchedule.dir = 1;
+            testSchedule.stops = true;
+            trackToCheck = 1;
+        } else if (type === 'EXPRESS_FAST') {
+            // UP direction (left-right) no stops - use track below platform2
+            testSchedule.type = 'EXPRESS_FAST';
+            testSchedule.track = 2;  // Track below PLATFORM2
+            testSchedule.dir = 1;
+            testSchedule.stops = false;
+            trackToCheck = 2;
+        } else if (type === 'EXPRESS_DN') {
+            // DOWN direction (right-left) with stops - use PLATFORM1
+            testSchedule.type = 'NORMAL';
+            testSchedule.track = 4;  // PLATFORM1
+            testSchedule.dir = -1;
+            testSchedule.stops = true;
+            trackToCheck = 4;
+        } else if (type === 'GOODS') {
+            // UP direction (left-right) no stops - use track below platform2
+            testSchedule.type = 'GOODS';
+            testSchedule.track = 2;  // Track below PLATFORM2
+            testSchedule.dir = 1;
+            testSchedule.stops = false;
+            trackToCheck = 2;
+        } else if (type === 'LOCAL') {
+            // UP direction (left-right) with stops - use PLATFORM2
+            testSchedule.type = 'LOCAL';
+            testSchedule.track = 1;  // PLATFORM2
+            testSchedule.dir = 1;
+            testSchedule.stops = true;
+            trackToCheck = 1;
+        }
+        
+        // Check if any train is currently on the platform/track
+        let platformBlocked = false;
+        trains.forEach(t => {
+            if (t.trackId === trackToCheck) {
+                // Check if train is still on the track
+                if (t.dir === 1 && t.headX <= 1500 && t.headX >= -100) platformBlocked = true;
+                if (t.dir === -1 && t.headX >= -100 && t.headX <= 1500) platformBlocked = true;
+            }
+        });
+        
+        if (platformBlocked) {
+            alert('Track/Platform is occupied! Wait for train to depart.');
+            return;
+        }
+        
+        trains.push(new Train(testSchedule));
+        dbAdapter.schedule.push(testSchedule);
+        dbAdapter.render();
+    }
+
+    // --- CONFIGURATION ---
+    const TRACK_Y = [80, 200, 300, 380, 480]; 
+    const Z_MAIN_SPLIT_S = 50, Z_MAIN_SPLIT_E = 300;
+    const Z_GOODS_SPLIT_S = 100, Z_GOODS_SPLIT_E = 250;
+    const Z_GOODS_MERGE_S = 1000, Z_GOODS_MERGE_E = 1150;
+    const Z_MAIN_MERGE_S = 1150, Z_MAIN_MERGE_E = 1350;
+    const PLATFORM_X = 320, PLATFORM_W = 780, PLATFORM_H = 25;
+
+    // --- MATH ---
+    function sCurve(x, x1, x2, y1, y2) {
+        let t = (x - x1) / (x2 - x1);
+        if(t < 0) t = 0; if(t > 1) t = 1;
+        let p = (1 - Math.cos(t * Math.PI)) / 2;
+        return y1 + (y2 - y1) * p;
+    }
+
+    function getTrackY(trackId, x) {
+        let y = TRACK_Y[trackId];
+        if(trackId === 2 || trackId === 3) return y; 
+        if(trackId === 4) {
+            if(x < Z_MAIN_SPLIT_S) return TRACK_Y[3];
+            if(x >= Z_MAIN_SPLIT_S && x <= Z_MAIN_SPLIT_E) return sCurve(x, Z_MAIN_SPLIT_S, Z_MAIN_SPLIT_E, TRACK_Y[3], TRACK_Y[4]);
+            if(x > Z_MAIN_SPLIT_E && x < Z_MAIN_MERGE_S) return y;
+            if(x >= Z_MAIN_MERGE_S && x <= Z_MAIN_MERGE_E) return sCurve(x, Z_MAIN_MERGE_S, Z_MAIN_MERGE_E, TRACK_Y[4], TRACK_Y[3]);
+            return TRACK_Y[3];
+        }
+        let loopY = TRACK_Y[1];
+        if(x < Z_MAIN_SPLIT_S) loopY = TRACK_Y[2]; 
+        else if(x >= Z_MAIN_SPLIT_S && x <= Z_MAIN_SPLIT_E) loopY = sCurve(x, Z_MAIN_SPLIT_S, Z_MAIN_SPLIT_E, TRACK_Y[2], TRACK_Y[1]);
+        else if(x > Z_MAIN_SPLIT_E && x < Z_MAIN_MERGE_S) loopY = TRACK_Y[1];
+        else if(x >= Z_MAIN_MERGE_S && x <= Z_MAIN_MERGE_E) loopY = sCurve(x, Z_MAIN_MERGE_S, Z_MAIN_MERGE_E, TRACK_Y[1], TRACK_Y[2]);
+        else loopY = TRACK_Y[2];
+        if(trackId === 1) return loopY;
+        if(trackId === 0) {
+            if(x < Z_GOODS_SPLIT_S) return loopY; 
+            if(x >= Z_GOODS_SPLIT_S && x <= Z_GOODS_SPLIT_E) {
+                let startY = sCurve(Z_GOODS_SPLIT_S, Z_MAIN_SPLIT_S, Z_MAIN_SPLIT_E, TRACK_Y[2], TRACK_Y[1]);
+                return sCurve(x, Z_GOODS_SPLIT_S, Z_GOODS_SPLIT_E, startY, TRACK_Y[0]);
+            }
+            if(x > Z_GOODS_SPLIT_E && x < Z_GOODS_MERGE_S) return TRACK_Y[0];
+            if(x >= Z_GOODS_MERGE_S && x <= Z_GOODS_MERGE_E) return sCurve(x, Z_GOODS_MERGE_S, Z_GOODS_MERGE_E, TRACK_Y[0], TRACK_Y[1]);
+            return loopY;
+        }
+        return y;
+    }
+
+    // --- TRAIN COMPOSITION & COLORS ---
+    
+    const BOGIE_LEN = 28; // Slightly wider to fit text
+    const BOGIE_GAP = 3;
+
+    // Color Palette for Bogies
+    const COLORS = {
+        'ENG': '#e74c3c', // Red Engine
+        'WAG': '#27ae60', // Green Engine (Goods)
+        'SLR': '#95a5a6', // Guard/Luggage (Grey)
+        'EOG': '#7f8c8d', // Generator (Dark Grey)
+        'UR':  '#3498db', // General (Blue)
+        'ACE': '#bdc3c7', // AC Econ (Light Grey)
+        '3AC': '#bdc3c7', // AC 3 Tier
+        '2AC': '#ecf0f1', // AC 2 Tier (White/Silver)
+        '1AC': '#ffffff', // 1st AC (White)
+        'BOXN': '#d35400', // Wagon (Rust)
+        'BVZI': '#ecf0f1', // Brake Van (White)
+        'EMU': '#3498db'  // Local
+    };
+
+    const TRAIN_TYPES = {
+        'LOCAL': {
+            type: 'EMU',
+            // 8 Car EMU
+            consist: ['ENG', 'UR', 'UR', 'UR', 'UR', 'UR', 'UR', 'ENG'] 
+        },
+        'NORMAL': {
+            type: 'EXPRESS',
+            // 16 Car LHB Rake
+            consist: ['ENG', 'EOG', 'UR', 'UR', 'S1', 'S2', 'S3', 'B1', 'B2', 'A1', 'H1', 'S4', 'S5', 'UR', 'UR', 'SLR']
+        },
+        'EXPRESS_FAST': {
+            type: 'AC_EXPRESS',
+            // 12 Car AC Superfast (no stops)
+            consist: ['ENG', 'EOG', '1AC', '1AC', '1AC', '2AC', '2AC', '3AC', '3AC', '3AC', 'UR', 'SLR']
+        },
+        'GOODS': {
+            type: 'FREIGHT',
+            // 12 Wagons + Brake Van
+            consist: ['WAG', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BOXN', 'BVZI']
+        }
+    };
+    
+    const SCHEDULE = JSON.parse('{{ schedule_json|escapejs }}');
+
+    class DBAdapter {
+        constructor() { this.seed(); }
+        seed() {
+            this.schedule = Array.isArray(SCHEDULE) ? SCHEDULE : [];
+            this.schedule.forEach(r => {
+                r.timeSec = this.timeToSec(r.time);
+            });
+            this.schedule.sort((a,b) => a.timeSec - b.timeSec);
+            this.render();
+        }
+        timeToSec(t) {
+            if(!t) return 0;
+            const parts = t.split(':').map(Number);
+            return (parts[0]||0)*3600 + (parts[1]||0)*60 + (parts[2]||0);
+        }
+        update(id, st) { let r=this.schedule.find(x=>x.id===id); if(r){r.status=st;this.render();} }
+        render() {
+            const tb = document.getElementById('scheduleBody'); tb.innerHTML = '';
+            this.schedule.forEach(r => {
+                // Skip GONE trains from display
+                if(r.status === 'GONE') return;
+                let ln = r.track===0?"Goods":(r.track===1?"Plat 2":(r.track===4?"Plat 1":"Main"));
+                let tr = document.createElement('tr');
+                tr.innerHTML = `<td>${r.time}</td><td>${r.number}</td><td>${r.name}</td><td>${ln}</td><td class="status-${r.status}">${r.status}</td>`;
+                tb.appendChild(tr);
+            });
+        }
+    }
+    const dbAdapter = new DBAdapter();
+
+    // --- SIGNALS ---
+    let trains = [];
+    let signals = [];
+
+    function initSignals() {
+        signals = [];
+        const create = (id, track, x, type) => ({ 
+            id: id, trackId: track, x: x, type: type, 
+            state: 'RED', routeInd: 0, manualCleared: false
+        });
+
+        signals.push(create('H-UP', 2, 30, 'HOME')); 
+        signals.push(create('S-GDS', 0, 950, 'STARTER')); 
+        signals.push(create('S-P2',  1, 1100, 'STARTER')); 
+        signals.push(create('S-M2',  2, 1150, 'STARTER')); 
+
+        signals.push(create('H-DN', 3, 1370, 'HOME'));
+        signals.push(create('S-P1', 4, 320, 'STARTER')); 
+        signals.push(create('S-M3', 3, 280, 'STARTER')); 
+    }
+
+    class Train {
+        constructor(db) {
+            this.data = db;
+            this.trackId = db.track;
+            this.dir = db.dir;
+            this.stops = db.stops;
+            this.trainType = db.type;
+            
+            // LOAD CONSIST
+            let cfg = TRAIN_TYPES[db.type];
+            this.consist = cfg.consist;
+            this.bogieCount = this.consist.length;
+            
+            this.headX = this.dir===1 ? -50 : CANVAS.width+50;
+            this.speed = 0;
+            
+            // Realistic speed profiles
+            if (db.type === 'GOODS') {
+                this.maxSpeed = 2.0;        // Slow
+                this.accel = 0.02;          // Very slow acceleration
+                this.decel = 0.12;          // Heavy braking
+            } else if (db.type === 'LOCAL') {
+                this.maxSpeed = 5.0;        // Fast
+                this.accel = 0.08;          // Fast acceleration
+                this.decel = 0.18;          // Fast braking
+            } else if (db.type === 'NORMAL') {
+                this.maxSpeed = 4.0;        // Medium-high
+                this.accel = 0.03;          // Slow acceleration (heavy train)
+                this.decel = 0.10;          // Moderate braking
+            } else if (db.type === 'EXPRESS_FAST') {
+                this.maxSpeed = 5.5;        // Very fast
+                this.accel = 0.025;         // Very slow acceleration (heavy)
+                this.decel = 0.08;          // Very light braking (smooth)
+            } else {
+                this.maxSpeed = 4.5;
+                this.accel = 0.05;
+                this.decel = 0.15;
+            }
+            
+            this.state = 'RUNNING'; 
+            this.dwellTimer = 0;
+            this.readyToDepart = false;
+        }
+        
+        update() {
+            let targetSpeed = this.maxSpeed;
+            let nextSig = null;
+            let minDist = 9999;
+
+            signals.forEach(s => {
+                let applies = false;
+                if(s.trackId === this.trackId) applies = true;
+                if(this.dir===1 && this.headX < Z_MAIN_SPLIT_S && s.trackId===2) applies = true;
+                if(this.dir===-1 && this.headX > Z_MAIN_MERGE_E && s.trackId===3) applies = true;
+
+                if(applies) {
+                    let dist = (s.x - this.headX) * this.dir;
+                    if(dist > 0 && dist < 400 && dist < minDist) {
+                        minDist = dist;
+                        nextSig = s;
+                    }
+                }
+            });
+
+            if(nextSig && nextSig.state === 'RED') {
+                let stopDist = minDist - 40;
+                if(stopDist < 10) targetSpeed = 0;
+                else if(stopDist < 100) targetSpeed = 0.5;
+                else if(stopDist < 250) targetSpeed = 1.5;
+            }
+
+            if(this.speed < targetSpeed) this.speed += this.accel;
+            if(this.speed > targetSpeed) this.speed -= this.decel;
+            if(this.speed < 0) this.speed = 0;
+            this.headX += (this.speed * this.dir);
+
+            if(this.speed===0 && nextSig && nextSig.type==='STARTER' && nextSig.state==='RED' && this.stops) {
+                // Only allow stopping at platform tracks (1 = PLATFORM2, 4 = PLATFORM1)
+                let isPlatformTrack = (this.trackId === 1 || this.trackId === 4);
+                if(isPlatformTrack && minDist < 60 && this.state==='RUNNING') {
+                    this.state = 'DWELLING';
+                    this.dwellTimer = 150; 
+                    dbAdapter.update(this.data.id, 'STOPPED');
+                }
+            }
+            if(this.state==='DWELLING') {
+                this.dwellTimer--;
+                if(this.dwellTimer<=0) {
+                    this.state = 'DEPARTED';
+                    this.readyToDepart = true;
+                    dbAdapter.update(this.data.id, 'DEPARTING');
+                }
+            }
+        }
+
+        draw() {
+            CTX.strokeStyle = "#111";
+            CTX.font = "8px Arial";
+            CTX.textAlign = "center";
+            CTX.textBaseline = "middle";
+
+            let space = BOGIE_LEN + BOGIE_GAP;
+            for(let i=0; i<this.bogieCount; i++) {
+                // Determine Bogie Label based on direction
+                // If L->R: Index 0 is front. If R->L: Index 0 is front.
+                // The consist array is always [Engine, ..., Tail].
+                // So at i=0 (Head), we draw consist[0].
+                
+                let label = this.consist[i];
+                let color = COLORS[label] || COLORS['UR'];
+                
+                // Specific override: If it's a Sleeper (S1, S2...) use Blue
+                if(label.startsWith('S') && label.length < 4 && label !== 'SLR') color = '#3498db'; 
+                // AC Coaches (A1, B1, H1) use Grey
+                if(label.startsWith('A') || label.startsWith('B') || label.startsWith('H')) color = '#bdc3c7';
+
+                let bx = this.headX - (i * space * this.dir);
+                let y1 = getTrackY(this.trackId, bx);
+                let y2 = getTrackY(this.trackId, bx + 5*this.dir);
+                let ang = Math.atan2(y2-y1, (bx+5*this.dir)-bx);
+                
+                CTX.save();
+                CTX.translate(bx, y1);
+                CTX.rotate(ang);
+                
+                // Draw Bogie Body
+                CTX.fillStyle = color;
+                CTX.fillRect(-BOGIE_LEN/2, -7, BOGIE_LEN, 14);
+                CTX.strokeRect(-BOGIE_LEN/2, -7, BOGIE_LEN, 14);
+                
+                // Draw Text
+                CTX.fillStyle = (color === '#ffffff' || color === '#ecf0f1' || color === '#bdc3c7') ? '#000' : '#fff'; // Contrast text
+                // Flip text if train going left so it's readable:
+                if(this.dir === -1) {
+                    CTX.scale(-1, 1);
+                    CTX.rotate(Math.PI);  // 180 degree rotation to keep text upright
+                }
+                CTX.fillText(label, 0, 0);
+
+                CTX.restore();
+            }
+        }
+    }
+
+    // --- MAIN LOOP ---
+    function hardReset() {
+        if(animFrameId) cancelAnimationFrame(animFrameId);
+        trains = [];
+        initSignals();
+        dbAdapter.seed();
+        loop();
+    }
+
+    function loop() {
+        // In test mode, use simulated time; in real mode, use real time
+        let now = new Date();
+        if (TEST_MODE) {
+            SIMULATED_TIME_OFFSET += (16.67 * TIME_SPEED);  // Approx frame time (60fps) * speed multiplier
+            now = new Date(now.getTime() + SIMULATED_TIME_OFFSET);
+        }
+        
+        let nowStr = now.toTimeString().split(' ')[0];
+        let nowSec = dbAdapter.timeToSec(nowStr);
+        document.getElementById('sysTime').innerText = nowStr + (TEST_MODE ? ' (TEST ' + TIME_SPEED + 'x)' : '');
+
+        // Only spawn trains at their scheduled time (within 30 second window)
+        dbAdapter.schedule.forEach(r => {
+            if(r.status==='PENDING' && nowSec >= r.timeSec && nowSec - r.timeSec <= 30) {
+                // Check if the track is completely clear before allowing entry
+                let blocked = false;
+                trains.forEach(t => {
+                    // Only check trains on the SAME track
+                    if(t.trackId === r.track) {
+                        // Check if train is still physically on the track (hasn't fully exited)
+                        // Track roughly spans 0-1500 pixels horizontally, with 50px buffer zones
+                        let trainTailX;
+                        if(t.dir === 1) {
+                            // Train moving UP (left to right): check from tail to head
+                            let trainLength = t.bogieCount * (BOGIE_LEN + BOGIE_GAP);
+                            trainTailX = t.headX - (trainLength * t.dir);
+                            // If any part of the train is on the track, block
+                            if(t.headX <= 1500 && trainTailX >= -100) {
+                                blocked = true;
+                            }
+                        } else {
+                            // Train moving DOWN (right to left): check from tail to head
+                            let trainLength = t.bogieCount * (BOGIE_LEN + BOGIE_GAP);
+                            trainTailX = t.headX - (trainLength * t.dir);
+                            // If any part of the train is on the track, block
+                            if(t.headX >= -100 && trainTailX <= 1500) {
+                                blocked = true;
+                            }
+                        }
+                    }
+                });
+                if(!blocked) { trains.push(new Train(r)); dbAdapter.update(r.id, 'ARRIVED'); }
+            }
+        });
+
+        for(let i = trains.length - 1; i >= 0; i--) {
+            let t = trains[i];
+            t.update();
+            let len = t.bogieCount*(BOGIE_LEN+BOGIE_GAP);
+            if((t.dir===1 && t.headX-len > CANVAS.width) || (t.dir===-1 && t.headX+len < 0)) {
+                trains.splice(i,1); dbAdapter.update(t.data.id, 'GONE');
+            }
+        }
+
+        updateSignals();
+        render();
+        animFrameId = requestAnimationFrame(loop);
+    }
+
+    function updateSignals() {
+        signals.forEach(s => { s.state='RED'; s.routeInd=0; });
+
+        signals.forEach(s => {
+            let reqTrain = null;
+            let occupied = false;
+
+            trains.forEach(t => {
+                let applies = false;
+                if(s.trackId === t.trackId) applies = true;
+                if(t.dir===1 && t.headX < Z_MAIN_SPLIT_S && s.trackId===2) applies = true;
+                if(t.dir===-1 && t.headX > Z_MAIN_MERGE_E && s.trackId===3) applies = true;
+
+                if(applies) {
+                    let dist = (s.x - t.headX) * t.dir;
+                    let len = t.bogieCount*(BOGIE_LEN+BOGIE_GAP);
+                    if(dist < 0 && dist > -len) occupied = true;
+                    if(dist > 0 && dist < 500) reqTrain = t;
+                }
+            });
+
+            if(occupied) { s.state='RED'; s.manualCleared=false; return; }
+
+            if(MANUAL_MODE) {
+                if(s.manualCleared) s.state='GREEN';
+            } else {
+                if(reqTrain) {
+                    let go = true;
+                    if(s.type==='STARTER' && reqTrain.stops && !reqTrain.readyToDepart) go=false;
+                    if(go) s.state='GREEN';
+                }
+            }
+
+            if(reqTrain && s.state !== 'RED') {
+                if(s.type==='HOME') {
+                    if(s.trackId===2 && (reqTrain.trackId===1 || reqTrain.trackId===0)) s.routeInd = 1; 
+                    if(s.trackId===3 && reqTrain.trackId===4) s.routeInd = 2;
+                }
+                if(s.type==='STARTER') {
+                    if(s.trackId===0 || s.trackId===1) s.routeInd = 2; 
+                    if(s.trackId===4) s.routeInd = 1; 
+                }
+            }
+        });
+    }
+
+    function render() {
+        CTX.clearRect(0,0, CANVAS.width, CANVAS.height);
+
+        // PLATFORMS
+        CTX.fillStyle = "#333";
+        CTX.fillRect(PLATFORM_X, TRACK_Y[1]-40, PLATFORM_W, PLATFORM_H);
+        CTX.fillStyle = "#ccc"; CTX.font="14px Arial"; CTX.textAlign="left";
+        CTX.fillText("PLATFORM 2", PLATFORM_X+20, TRACK_Y[1]-45);
+
+        CTX.fillStyle = "#333";
+        CTX.fillRect(PLATFORM_X, TRACK_Y[4]+10, PLATFORM_W, PLATFORM_H);
+        CTX.fillStyle = "#ccc"; 
+        CTX.fillText("PLATFORM 1", PLATFORM_X+20, TRACK_Y[4]+65);
+
+        // Tracks
+        CTX.strokeStyle = "#555"; CTX.lineWidth = 3;
+        for(let t=0; t<5; t++) {
+            CTX.beginPath();
+            for(let x=0; x<=CANVAS.width; x+=10) {
+                let y = getTrackY(t, x);
+                if(x===0) CTX.moveTo(x, y); else CTX.lineTo(x, y);
+            }
+            CTX.stroke();
+        }
+
+        // Signals
+        signals.forEach(s => {
+            let y = getTrackY(s.trackId, s.x);
+            let yOff = (s.trackId >= 3) ? 25 : -25;
+            
+            CTX.fillStyle = "#222"; CTX.fillRect(s.x-2, y, 4, yOff);
+            
+            CTX.fillStyle = s.state==='RED'?'#e74c3c':'#2ecc71';
+            CTX.beginPath(); CTX.arc(s.x, y+yOff, 6, 0, Math.PI*2); CTX.fill();
+
+            if(s.routeInd > 0) {
+                CTX.save();
+                CTX.translate(s.x, y+yOff);
+                let angle = (s.routeInd === 1) ? -Math.PI/4 : Math.PI/4;
+                CTX.rotate(angle);
+                CTX.fillStyle = "#111"; CTX.fillRect(-5, -22, 10, 20); 
+                CTX.fillStyle = "#fff"; 
+                for(let k=0; k<3; k++) { CTX.beginPath(); CTX.arc(0, -6 - (k*6), 2, 0, Math.PI*2); CTX.fill(); }
+                CTX.restore();
+            }
+
+            if(MANUAL_MODE && s.manualCleared) {
+                CTX.strokeStyle="#2ecc71"; CTX.lineWidth=2; CTX.strokeRect(s.x-10, y+yOff-10, 20, 20);
+            }
+        });
+
+        trains.forEach(t => t.draw());
+    }
+
+    CANVAS.addEventListener('mousedown', e => {
+        let r = CANVAS.getBoundingClientRect();
+        let mx = (e.clientX - r.left) * (CANVAS.width/r.width);
+        let my = (e.clientY - r.top) * (CANVAS.height/r.height);
+        
+        signals.forEach(s => {
+            let y = getTrackY(s.trackId, s.x);
+            let yOff = (s.trackId >= 3) ? 25 : -25;
+            if(Math.abs(mx-s.x)<20 && Math.abs(my-(y+yOff))<20) {
+                if(MANUAL_MODE) s.manualCleared = !s.manualCleared;
+            }
+        });
+    });
+
+    initSignals();
+    loop();
+</script>
+</div>
+
+{% include 'footer.html' %}

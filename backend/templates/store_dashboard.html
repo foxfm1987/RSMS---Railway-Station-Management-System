@@ -1,0 +1,297 @@
+{% load static %}
+{% include 'header.html' %}
+
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ store.name }}</h1>
+        <div class="text-right">
+            <span class="text-muted">Today's Revenue:</span>
+            <h3 class="mb-0 text-success" id="storeRevenue">₹{{ today_revenue|floatformat:2 }}</h3>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags %}{{ message.tags }}{% else %}info{% endif %}" role="alert">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if no_store %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> You are not assigned to any store. Please contact the station master.
+        </div>
+    {% else %}
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="storeTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="sales-tab" data-toggle="tab" href="#sales" role="tab">
+                <i class="fas fa-cash-register"></i> Sales
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="inventory-tab" data-toggle="tab" href="#inventory" role="tab">
+                <i class="fas fa-boxes"></i> Inventory
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="purchase-tab" data-toggle="tab" href="#purchase" role="tab">
+                <i class="fas fa-shopping-cart"></i> Purchases
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="storeTabsContent">
+        
+        <!-- SALES TAB -->
+        <div class="tab-pane fade show active" id="sales" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-5">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Record Sale</h6>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="sale">
+                                
+                                <div class="form-group">
+                                    <label>Product</label>
+                                    <select class="form-control" name="product_id" required>
+                                        <option value="">Select Product</option>
+                                        {% regroup products_with_stock by category as product_list %}
+                                        {% for category in product_list %}
+                                            <optgroup label="{{ category.grouper }}">
+                                                {% for product in category.list %}
+                                                    <option value="{{ product.id }}" {% if product.stock|default:0 <= 0 %}disabled{% endif %}>
+                                                        {{ product.name }} - ₹{{ product.base_price }}
+                                                        {% if product.stock|default:0 > 0 %}(Stock: {{ product.stock }}){% else %}(Out of stock){% endif %}
+                                                    </option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Quantity</label>
+                                    <input type="number" class="form-control" name="qty" value="1" min="1" required>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i> Record Sale
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-7">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-success">Today's Sales</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date & Time</th>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for sale in sales %}
+                                        <tr>
+                                            <td>{{ sale.sold_at|date:"d/m/Y h:i A" }}</td>
+                                            <td>{{ sale.item }}</td>
+                                            <td>{{ sale.qty }}</td>
+                                            <td>₹{{ sale.unit_price_inr }}</td>
+                                            <td class="font-weight-bold">₹{{ sale.total_inr }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted">No sales recorded today</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INVENTORY TAB -->
+        <div class="tab-pane fade" id="inventory" role="tabpanel">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Current Inventory</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Base Price</th>
+                                    <th>Stock</th>
+                                    <th>Reorder Level</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for inv in inventory %}
+                                <tr {% if inv.quantity <= inv.reorder_level %}class="table-warning"{% endif %}>
+                                    <td>{{ inv.product.name }}</td>
+                                    <td>{{ inv.product.get_category_display }}</td>
+                                    <td>₹{{ inv.product.base_price }}</td>
+                                    <td class="font-weight-bold">{{ inv.quantity }}</td>
+                                    <td>{{ inv.reorder_level }}</td>
+                                    <td>
+                                        {% if inv.quantity == 0 %}
+                                            <span class="badge badge-danger">Out of Stock</span>
+                                        {% elif inv.quantity <= inv.reorder_level %}
+                                            <span class="badge badge-warning">Low Stock</span>
+                                        {% else %}
+                                            <span class="badge badge-success">In Stock</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No inventory items</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PURCHASE TAB -->
+        <div class="tab-pane fade" id="purchase" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-5">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Record Purchase</h6>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="purchase">
+                                
+                                <div class="form-group">
+                                    <label>Product</label>
+                                    <select class="form-control" name="product_id" required>
+                                        <option value="">Select Product</option>
+                                        {% regroup products_with_stock by category as product_list %}
+                                        {% for category in product_list %}
+                                            <optgroup label="{{ category.grouper }}">
+                                                {% for product in category.list %}
+                                                    <option value="{{ product.id }}">{{ product.name }} - ₹{{ product.base_price }}</option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Quantity</label>
+                                    <input type="number" class="form-control" name="qty" value="10" min="1" required>
+                                </div>
+
+                                <div class="alert alert-light border" role="alert">
+                                    Unit cost is fixed per item and taken from the product base price.
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Supplier</label>
+                                    <input type="text" class="form-control" name="supplier" value="Railway Stores Depot">
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i> Record Purchase
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-7">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-success">Recent Purchases</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Product</th>
+                                            <th>Qty</th>
+                                            <th>Unit Cost</th>
+                                            <th>Total</th>
+                                            <th>Supplier</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for purchase in purchases %}
+                                        <tr>
+                                            <td>{{ purchase.purchased_at|date:"d/m/Y" }}</td>
+                                            <td>{{ purchase.product.name }}</td>
+                                            <td>{{ purchase.quantity }}</td>
+                                            <td>₹{{ purchase.unit_cost }}</td>
+                                            <td class="font-weight-bold">₹{{ purchase.total_cost }}</td>
+                                            <td class="text-muted small">{{ purchase.supplier }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">No purchases recorded</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+
+{% include 'footer.html' %}
+
+<script>
+function refreshStoreRevenue() {
+    fetch("{% url 'store_revenue' %}")
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data && data.today_revenue !== undefined) {
+                document.getElementById('storeRevenue').innerText = '₹' + data.today_revenue.toFixed(2);
+            }
+        })
+        .catch(function() {});
+}
+setInterval(refreshStoreRevenue, 1000);
+refreshStoreRevenue();
+
+setInterval(function() {
+    window.location.reload();
+}, 60000);
+</script>

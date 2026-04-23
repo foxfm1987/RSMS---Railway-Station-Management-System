@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Full Station Report (Last {{ days }} Days)</title>
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        @media print { .no-print { display:none; } }
+        h4 { margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h2>Full Station Report - Last {{ days }} Days</h2>
+    <button class="btn btn-primary no-print" onclick="window.print()">Print / Save as PDF</button>
+    
+    <h4>Train Schedules</h4>
+    <div class="table-responsive">
+        <table class="table table-bordered" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Train No.</th>
+                    <th>Train</th>
+                    <th>Time</th>
+                    <th>Track</th>
+                    <th>Direction</th>
+                    <th>Delay (min)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in schedules %}
+                <tr>
+                    <td>{{ s.service_date }}</td>
+                    <td>{{ s.train.number }}</td>
+                    <td>{{ s.train.name }}</td>
+                    <td>{{ s.scheduled_time }}</td>
+                    <td>{{ s.get_track_type_display }}</td>
+                    <td>{{ s.get_direction_display }}</td>
+                    <td>{{ s.delay_minutes }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center">No schedules.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4>Tickets</h4>
+    <div class="table-responsive">
+        <table class="table table-bordered" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>PNR</th>
+                    <th>User</th>
+                    <th>Type</th>
+                    <th>Class</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                    <th>Booked</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr>
+                    <td>{{ t.pnr }}</td>
+                    <td>{{ t.user.email }}</td>
+                    <td>{{ t.ticket_type }}</td>
+                    <td>{{ t.coach_class }}</td>
+                    <td>{{ t.status }}</td>
+                    <td>₹{{ t.amount_inr }}</td>
+                    <td>{{ t.booked_at }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center">No tickets.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4>Goods Shipments</h4>
+    <div class="table-responsive">
+        <table class="table table-bordered" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Label</th>
+                    <th>Sender</th>
+                    <th>Weight (kg)</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in shipments %}
+                <tr>
+                    <td>{{ s.label_no }}</td>
+                    <td>{{ s.sender_name }} ({{ s.sender_email }})</td>
+                    <td>{{ s.weight_kg }}</td>
+                    <td>₹{{ s.amount_inr }}</td>
+                    <td>{{ s.status }}</td>
+                    <td>{{ s.created_at }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No shipments.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4>Store Sales</h4>
+    <div class="table-responsive">
+        <table class="table table-bordered" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Store</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                    <th>Sold At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sales %}
+                <tr>
+                    <td>{{ s.store.name }}</td>
+                    <td>{{ s.item }}</td>
+                    <td>{{ s.qty }}</td>
+                    <td>₹{{ s.total_inr }}</td>
+                    <td>{{ s.sold_at }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center">No sales.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

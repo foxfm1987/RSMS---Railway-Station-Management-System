@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket {{ ticket.pnr }}</title>
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        .ticket-box { border: 1px dashed #333; padding: 20px; max-width: 700px; margin: 0 auto; }
+        .header { display:flex; justify-content:space-between; align-items:center; }
+        .title { font-weight: bold; font-size: 1.2rem; }
+        .muted { color: #6c757d; }
+        @media print { .no-print { display:none; } }
+    </style>
+</head>
+<body>
+    <div class="ticket-box">
+        <div class="header">
+            <div class="title">Indian Railways Ticket</div>
+            <div class="muted">PNR: {{ ticket.pnr }}</div>
+        </div>
+        <hr>
+        <p><strong>Passenger:</strong> {{ ticket.user.fullname|default:ticket.user.email }}</p>
+        <p><strong>Type:</strong> {{ ticket.ticket_type }}</p>
+        <p><strong>Class:</strong> {{ ticket.coach_class }}</p>
+        <p><strong>Passengers:</strong> {{ ticket.passenger_count }}</p>
+        <p><strong>Status:</strong> {{ ticket.status }}</p>
+        <p><strong>Amount:</strong> ₹{{ ticket.amount_inr }}</p>
+        <div class="mb-3">
+            <p><strong>QR Code:</strong></p>
+            {% if ticket_qr %}
+                <img src="data:image/png;base64,{{ ticket_qr }}" alt="Ticket QR" style="width:160px;height:160px;border:1px solid #ddd;padding:4px;" />
+            {% else %}
+                <span class="text-muted">QR unavailable (qrcode package not installed in active environment).</span>
+            {% endif %}
+        </div>
+        {% if ticket.passenger_details %}
+            <hr>
+            <p><strong>Passenger Details</strong></p>
+            <ol>
+            {% for p in ticket.passenger_details %}
+                <li>{{ p.name }} ({{ p.age }}, {{ p.gender }})</li>
+            {% endfor %}
+            </ol>
+        {% endif %}
+        {% if ticket.schedule %}
+            <p><strong>Train:</strong> {{ ticket.schedule.train.number }} - {{ ticket.schedule.train.name }}</p>
+            <p><strong>Time:</strong> {{ ticket.schedule.scheduled_time }}</p>
+        {% else %}
+            <p><strong>Train:</strong> Platform Ticket</p>
+        {% endif %}
+        <p class="muted">Booked at: {{ ticket.booked_at }}</p>
+        <button class="btn btn-primary no-print" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Goods Report (Last {{ days }} Days)</title>
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        @media print { .no-print { display:none; } }
+    </style>
+</head>
+<body>
+    <h3>Goods Report - Last {{ days }} Days</h3>
+    <button class="btn btn-primary no-print" onclick="window.print()">Print / Save as PDF</button>
+    <div class="table-responsive mt-3">
+        <table class="table table-bordered" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Label</th>
+                    <th>Sender</th>
+                    <th>Weight (kg)</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in shipments %}
+                <tr>
+                    <td>{{ s.label_no }}</td>
+                    <td>{{ s.sender_name }} ({{ s.sender_email }})</td>
+                    <td>{{ s.weight_kg }}</td>
+                    <td>₹{{ s.amount_inr }}</td>
+                    <td>{{ s.status }}</td>
+                    <td>{{ s.created_at }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center">No shipments in last {{ days }} days.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

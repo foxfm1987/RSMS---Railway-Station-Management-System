@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stores Report (Last {{ days }} Days)</title>
+    <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        @media print { .no-print { display:none; } }
+    </style>
+</head>
+<body>
+    <h3>Stores Report - Last {{ days }} Days</h3>
+    <button class="btn btn-primary no-print" onclick="window.print()">Print / Save as PDF</button>
+    <div class="table-responsive mt-3">
+        <table class="table table-bordered" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Store</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                    <th>Sold At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sales %}
+                <tr>
+                    <td>{{ s.store.name }}</td>
+                    <td>{{ s.item }}</td>
+                    <td>{{ s.qty }}</td>
+                    <td>₹{{ s.total_inr }}</td>
+                    <td>{{ s.sold_at }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center">No sales in last {{ days }} days.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
