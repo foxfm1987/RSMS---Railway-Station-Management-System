@@ -37,4 +37,4 @@ This codebase serves as the structural proof-of-concept. The long-term architect
 ---
 
 ## 👨‍💻 Author
-foxm1987
+foxfm1987
